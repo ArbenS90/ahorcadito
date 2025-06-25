@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Ahorcado Definitivo</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="script.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 EL AHORCADO DEFINITIVO 🎯</h1>
+        
+        <div id="setup" class="setup-area">
+            <div class="game-setup">
+                <select id="categorySelect" class="selector">
+                    <option value="">Selecciona una categoría</option>
+                </select>
+                
+                <select id="difficultySelect" class="selector">
+                    <option value="">Selecciona dificultad</option>
+                    <option value="facil">🟢 Fácil</option>
+                    <option value="medio">🟡 Medio</option>
+                    <option value="dificil">🟠 Difícil</option>
+                    <option value="pro">🔴 Pro</option>
+                    <option value="dios">🟣 Dios</option>
+                    <option value="imposible">⚫ Imposible</option>
+                </select>
+                
+                <select id="languageSelect" class="selector">
+                    <option value="">Selecciona idioma</option>
+                </select>
+            </div>
+            
+            <button id="startGame" class="start-button">🚀 ¡COMENZAR JUEGO!</button>
+            
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                Cargando palabras desde Google Sheets...
+            </div>
+            
+            <div id="error" class="error" style="display: none;"></div>
+        </div>
+
+        <div id="gameArea" class="game-area">
+            <div class="game-info">
+                <div class="info-box">
+                    <strong>Categoría:</strong>
+                    <div id="currentCategory">-</div>
+                </div>
+                <div class="info-box">
+                    <strong>Dificultad:</strong>
+                    <div id="currentDifficulty">-</div>
+                </div>
+                <div class="info-box">
+                    <strong>Intentos restantes:</strong>
+                    <div id="attemptsLeft">6</div>
+                </div>
+                <div class="info-box">
+                    <strong>Puntuación:</strong>
+                    <div id="score">0</div>
+                </div>
+            </div>
+
+            <div id="hangmanDisplay" class="hangman-display"></div>
+            
+            <div id="wordDisplay" class="word-display"></div>
+            
+            <div class="hint-section">
+                <button id="hintBtn" class="hint-btn">💡 Mostrar Pista</button>
+                <div id="hintText" class="hint-text" style="display: none;"></div>
+            </div>
+            
+            <div id="alphabet" class="alphabet"></div>
+            
+            <div id="gameOver" class="game-over" style="display: none;"></div>
+            
+            <div>
+                <button id="newGameBtn" class="start-button" style="display: none;">🎮 Nueva Palabra</button>
+                <button id="backToMenuBtn" class="start-button">🏠 Volver al Menú</button>
+            </div>
+        </div>
+    </div>
+
+    
+</body>
+</html>
