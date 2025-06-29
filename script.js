@@ -47,6 +47,11 @@ class HangmanGame {
         try {
             const url = `https://docs.google.com/spreadsheets/d/${this.SHEET_ID}/gviz/tq?tqx=out:json`;
             const response = await fetch(url);
+            
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            
             const text = await response.text();
             
             // Procesar la respuesta de Google Sheets
@@ -56,55 +61,41 @@ class HangmanGame {
             this.words = [];
             
             if (data.table && data.table.rows) {
-                for (let i = 0; i < data.table.rows.length; i++) {
+                // Empezar desde i = 1 para saltar la primera fila (encabezados)
+                for (let i = 1; i < data.table.rows.length; i++) {
                     const row = data.table.rows[i];
                     if (row.c && row.c[0] && row.c[0].v) {
                         const word = {
-                            palabra: (row.c[0] ? row.c[0].v : '').toString().trim(),
-                            categoria: (row.c[1] ? row.c[1].v : 'general').toString().trim().toLowerCase(),
-                            dificultad: (row.c[2] ? row.c[2].v : 'medio').toString().trim().toLowerCase(),
-                            pista: (row.c[3] ? row.c[3].v : 'Sin pista disponible').toString().trim(),
-                            idioma: (row.c[4] ? row.c[4].v : 'español').toString().trim().toLowerCase()
+                            palabra: row.c[0] ? row.c[0].v : '',
+                            categoria: row.c[1] ? row.c[1].v : 'general',
+                            dificultad: row.c[2] ? row.c[2].v : 'medio',
+                            pista: row.c[3] ? row.c[3].v : 'Sin pista disponible',
+                            idioma: row.c[4] ? row.c[4].v : 'español'
                         };
-                        
-                        // Solo agregar si la palabra no está vacía
-                        if (word.palabra.length > 0) {
-                            this.words.push(word);
-                        }
+                        this.words.push(word);
                     }
                 }
             }
             
             if (this.words.length === 0) {
-                throw new Error('No se encontraron palabras en la hoja');
+                throw new Error('No se encontraron palabras en la hoja de cálculo');
             }
             
+            console.log(`Se cargaron ${this.words.length} palabras desde Google Sheets`);
             this.populateSelectors();
             this.hideError();
+            this.enableGame();
             
         } catch (error) {
             console.error('Error al cargar palabras:', error);
-            this.showError('Error al conectar con Google Sheets. Usando palabras de ejemplo.');
-            this.loadFallbackWords();
+            this.showError('Error al conectar con Google Sheets. Revisa tu conexión a internet y haz clic en "Reintentar".');
+            this.disableGame();
         }
     }
 
-    loadFallbackWords() {
-        this.words = [
-            { palabra: 'gato', categoria: 'animales', dificultad: 'facil', pista: 'Mascota que maulla', idioma: 'español' },
-            { palabra: 'perro', categoria: 'animales', dificultad: 'facil', pista: 'Mejor amigo del hombre', idioma: 'español' },
-            { palabra: 'elefante', categoria: 'animales', dificultad: 'medio', pista: 'Animal grande con trompa', idioma: 'español' },
-            { palabra: 'computadora', categoria: 'tecnologia', dificultad: 'dificil', pista: 'Dispositivo para procesar información', idioma: 'español' },
-            { palabra: 'programacion', categoria: 'tecnologia', dificultad: 'pro', pista: 'Arte de crear software', idioma: 'español' },
-            { palabra: 'cat', categoria: 'animales', dificultad: 'facil', pista: 'Pet that meows', idioma: 'ingles' },
-            { palabra: 'computer', categoria: 'tecnologia', dificultad: 'medio', pista: 'Electronic device', idioma: 'ingles' }
-        ];
-        this.populateSelectors();
-    }
-
     populateSelectors() {
-        const categories = [...new Set(this.words.map(w => w.categoria))].filter(cat => cat && cat.length > 0);
-        const languages = [...new Set(this.words.map(w => w.idioma))].filter(lang => lang && lang.length > 0);
+        const categories = [...new Set(this.words.map(w => w.categoria))];
+        const languages = [...new Set(this.words.map(w => w.idioma))];
         
         const categorySelect = document.getElementById('categorySelect');
         const languageSelect = document.getElementById('languageSelect');
@@ -124,10 +115,6 @@ class HangmanGame {
             option.textContent = lang.charAt(0).toUpperCase() + lang.slice(1);
             languageSelect.appendChild(option);
         });
-        
-        console.log('Categorías disponibles:', categories);
-        console.log('Idiomas disponibles:', languages);
-        console.log('Total de palabras cargadas:', this.words.length);
     }
 
     setupEventListeners() {
@@ -135,9 +122,40 @@ class HangmanGame {
         document.getElementById('hintBtn').addEventListener('click', () => this.showHint());
         document.getElementById('newGameBtn').addEventListener('click', () => this.startGame());
         document.getElementById('backToMenuBtn').addEventListener('click', () => this.backToMenu());
+        document.getElementById('retryBtn').addEventListener('click', () => this.retryConnection());
+    }
+
+    enableGame() {
+        const startButton = document.getElementById('startGame');
+        const retryButton = document.getElementById('retryBtn');
+        
+        startButton.disabled = false;
+        startButton.textContent = 'Comenzar Juego';
+        retryButton.style.display = 'none';
+    }
+
+    disableGame() {
+        const startButton = document.getElementById('startGame');
+        const retryButton = document.getElementById('retryBtn');
+        
+        startButton.disabled = true;
+        startButton.textContent = 'Sin conexión - No disponible';
+        retryButton.style.display = 'inline-block';
+    }
+
+    async retryConnection() {
+        this.showLoading(true);
+        await this.loadWordsFromSheet();
+        this.showLoading(false);
     }
 
     startGame() {
+        // Validar que hay palabras disponibles
+        if (this.words.length === 0) {
+            alert('No hay palabras disponibles. Revisa tu conexión a internet y haz clic en "Reintentar".');
+            return;
+        }
+        
         const category = document.getElementById('categorySelect').value;
         const difficulty = document.getElementById('difficultySelect').value;
         const language = document.getElementById('languageSelect').value;
@@ -147,33 +165,51 @@ class HangmanGame {
             return;
         }
         
-        let filteredWords = this.words.filter(w => w.dificultad && w.dificultad.toLowerCase().trim() === difficulty.toLowerCase().trim());
+        let filteredWords = [...this.words];
         
+        // Filtrar por dificultad (requerido)
+        filteredWords = filteredWords.filter(w => 
+            w.dificultad && w.dificultad.toLowerCase() === difficulty.toLowerCase()
+        );
+        
+        // Filtrar por categoría (opcional)
         if (category) {
-            filteredWords = filteredWords.filter(w => w.categoria && w.categoria.toLowerCase().trim() === category.toLowerCase().trim());
+            filteredWords = filteredWords.filter(w => 
+                w.categoria && w.categoria.toLowerCase() === category.toLowerCase()
+            );
         }
         
+        // Filtrar por idioma (opcional)
         if (language) {
-            filteredWords = filteredWords.filter(w => w.idioma && w.idioma.toLowerCase().trim() === language.toLowerCase().trim());
+            filteredWords = filteredWords.filter(w => 
+                w.idioma && w.idioma.toLowerCase() === language.toLowerCase()
+            );
         }
         
+        console.log('Palabras disponibles:', this.words.length);
         console.log('Palabras filtradas:', filteredWords.length);
         console.log('Filtros aplicados:', { category, difficulty, language });
         
         if (filteredWords.length === 0) {
-            alert(`No se encontraron palabras con los filtros seleccionados.\nCategoría: ${category || 'Todas'}\nDificultad: ${difficulty}\nIdioma: ${language || 'Todos'}`);
+            let mensaje = `No se encontraron palabras para:\n`;
+            mensaje += `- Dificultad: ${difficulty}\n`;
+            if (category) mensaje += `- Categoría: ${category}\n`;
+            if (language) mensaje += `- Idioma: ${language}\n`;
+            mensaje += `\nIntenta con otros filtros o selecciona "Todas las categorías" y "Todos los idiomas"`;
+            alert(mensaje);
             return;
         }
         
         const randomWord = filteredWords[Math.floor(Math.random() * filteredWords.length)];
         this.currentWord = randomWord;
-        this.normalizedWord = this.normalizeText(randomWord.palabra);
         this.guessedWord = new Array(randomWord.palabra.length).fill('_');
         this.wrongGuesses = [];
         this.attemptsLeft = 6;
         this.hintUsed = false;
         this.gameWon = false;
         this.gameOver = false;
+        
+        console.log('Palabra seleccionada:', randomWord);
         
         this.updateDisplay();
         this.createAlphabet();
@@ -196,11 +232,12 @@ class HangmanGame {
         }
     }
 
-    // Función para normalizar texto (quitar tildes y convertir a mayúsculas)
+    // Función para normalizar texto (quitar tildes y pasar a minúsculas)
     normalizeText(text) {
-        return text.normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toUpperCase();
+        return text.toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')  // Remueve acentos
+            .replace(/[^a-z]/g, '');  // Solo letras
     }
 
     guessLetter(letter) {
@@ -219,12 +256,13 @@ class HangmanGame {
         
         targetButton.disabled = true;
         
-        const normalizedGuessLetter = this.normalizeText(letter);
+        // Normalizar tanto la palabra como la letra para comparar
+        const normalizedWord = this.normalizeText(this.currentWord.palabra);
+        const normalizedLetter = this.normalizeText(letter);
         let found = false;
         
-        for (let i = 0; i < this.currentWord.palabra.length; i++) {
-            const normalizedWordLetter = this.normalizeText(this.currentWord.palabra[i]);
-            if (normalizedWordLetter === normalizedGuessLetter) {
+        for (let i = 0; i < normalizedWord.length; i++) {
+            if (normalizedWord[i] === normalizedLetter) {
                 this.guessedWord[i] = this.currentWord.palabra[i];
                 found = true;
             }
